@@ -69,7 +69,7 @@ contract KipuBank {
         external
         validateWithdrawalAmount(user, amount)
     {
-        _processWithdrawal(msg.sender, amount);
+        _processWithdrawal(user, amount);
     }
 
     /*
