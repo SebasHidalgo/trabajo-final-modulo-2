@@ -39,8 +39,8 @@ contract KipuBank {
     /*
     @notice modificador para validar cuando se haga un retiro
     */
-    modifier validateWithdrawalAmount(address user, uint256 amount) {
-        uint256 userBalance = accounts[user];
+    modifier validateWithdrawalAmount(uint256 amount) {
+        uint256 userBalance = accounts[msg.sender];
 
         if (amount > withdrawalLimit) revert WithdrawalLimitExceeded(); // validar que el monto digitado no sea mayor al límite de retiro
         if (userBalance <= 0 || userBalance < amount) // validar que el usuario tenga balance disponible y que el monto digitado sea menor al balance
@@ -48,35 +48,43 @@ contract KipuBank {
         _;
     }
 
-    // @dev receive() - Se ejecuta para recibir ETH
+    /*
+    @notice modificador para validar que el monto sea mayor a 0
+    */
+    modifier validAmount() {
+        require(msg.value > 0, "You must send some ETH");
+        _;
+    }
+
+    function deposit() external payable validAmount {
+        _processDeposit();
+    }
+
     receive() external payable {
-        address sender = msg.sender;
-        uint256 amount = msg.value;
+        _processDeposit();
+    }
 
-        if (amount > bankCap) revert BankCapExceeded(); // validar que el monto no exceda el límite de deposito
-
-        depositCount++;
-        accounts[sender] += amount;
-        emit EthReceived(sender, amount);
+    fallback() external payable {
+        _processDeposit();
     }
 
     /*
     @dev withdraw() - Función para realizar un retiro de ETH
     @param user dirección destino
     @param amount cantidad de ETH a retirar
-    */ 
-    function withdraw(address user, uint256 amount)
+    */
+    function withdraw(uint256 amount)
         external
-        validateWithdrawalAmount(user, amount)
+        validateWithdrawalAmount(amount)
     {
-        _processWithdrawal(user, amount);
+        _processWithdrawal(msg.sender, amount);
     }
 
     /*
     @dev _processWithdrawal() - Función que contiene la lógica para retirar ETH
     @param user dirección destino
     @param amount cantidad de ETH a retirar
-    */ 
+    */
     function _processWithdrawal(address user, uint256 amount) private {
         accounts[user] -= amount;
 
@@ -85,5 +93,17 @@ contract KipuBank {
 
         withdrawalCount[user]++;
         emit EthWithdrawn(user, amount);
+    }
+
+    //@dev _proccessDeposit() - Función que contiene la lógica para depositar ETH
+    function _processDeposit() private {
+        address sender = msg.sender;
+        uint256 amount = msg.value;
+
+        if (amount > bankCap) revert BankCapExceeded(); // validar que el monto no exceda el límite de deposito
+
+        depositCount++;
+        accounts[sender] += amount;
+        emit EthReceived(sender, amount);
     }
 }
